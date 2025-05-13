@@ -1,1 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Neumorphic Image Resizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #e0e5ec;
+      --shadow-dark: #a3b1c6;
+      --shadow-light: #ffffff;
+      --accent: #4CAF50;
+      --accent-hover: #45a049;
+    }
 
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+      color: #333;
+      text-align: center;
+      text-shadow: 1px 1px 0 var(--shadow-light);
+    }
+
+    .container {
+      background: var(--bg);
+      box-shadow: 8px 8px 15px var(--shadow-dark),
+                  -8px -8px 15px var(--shadow-light);
+      border-radius: 20px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    input[type="file"],
+    input[type="number"],
+    button {
+      appearance: none;
+      border: none;
+      outline: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      background: var(--bg);
+      box-shadow: inset 6px 6px 10px #babecc,
+                  inset -6px -6px 10px var(--shadow-light);
+      width: 100%;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      font-weight: bold;
+      box-shadow: 4px 4px 8px var(--shadow-dark),
+                  -4px -4px 8px var(--shadow-light);
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    #output {
+      margin-top: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
+    }
+
+    .img-container {
+      background: var(--bg);
+      border-radius: 15px;
+      box-shadow: 6px 6px 12px var(--shadow-dark),
+                  -6px -6px 12px var(--shadow-light);
+      padding: 1rem;
+      text-align: center;
+      max-width: 250px;
+    }
+
+    canvas {
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Bulk Image Resizer to WebP</h1>
+
+  <div class="container">
+    <input type="file" id="imageInput" accept="image/*" multiple>
+    <input type="number" id="widthInput" placeholder="Width (px)">
+    <input type="number" id="heightInput" placeholder="Height (px)">
+    <button onclick="resizeImages()">Resize & Convert to WebP</button>
+    <button id="downloadZipBtn" style="display:none;">Download All as ZIP</button>
+  </div>
+
+  <div id="output"></div>
+
+  <!-- JSZip Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    const zip = new JSZip();
+    const output = document.getElementById('output');
+    const downloadBtn = document.getElementById('downloadZipBtn');
+
+    function resizeImages() {
+      const files = document.getElementById('imageInput').files;
+      const width = parseInt(document.getElementById('widthInput').value);
+      const height = parseInt(document.getElementById('heightInput').value);
+      output.innerHTML = '';
+      zip.files = {};
+      downloadBtn.style.display = 'none';
+
+      if (!files.length || !width || !height) {
+        alert("Please upload images and enter both width and height.");
+        return;
+      }
+
+      let processed = 0;
+
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const container = document.createElement('div');
+            container.className = 'img-container';
+            container.appendChild(canvas);
+            output.appendChild(container);
+
+            canvas.toBlob(function(blob) {
+              zip.file(`${file.name.replace(/\.[^/.]+$/, "")}.webp`, blob);
+              processed++;
+
+              if (processed === files.length) {
+                downloadBtn.style.display = 'block';
+              }
+            }, 'image/webp');
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    downloadBtn.addEventListener('click', () => {
+      zip.generateAsync({ type: "blob" }).then(function(content) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = "resized-images.zip";
+        a.click();
+      });
+    });
+  </script>
+</body>
+</html>
